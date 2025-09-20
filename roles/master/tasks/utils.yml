@@ -1,0 +1,14 @@
+---
+
+- name: Add directory k8s
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+    mode: '0700'
+
+- name: Copy k8s admin.conf
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    mode: '0700'
+    remote_src: yes

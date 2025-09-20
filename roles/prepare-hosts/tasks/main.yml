@@ -1,0 +1,121 @@
+---
+
+- name: Check swap
+  ansible.builtin.shell: "swapon --show --noheadings | wc -l"
+  register: swap_ret
+
+- name: If enabled -disable it
+  ansible.builtin.command: swapoff -a
+  when: swap_ret.stdout != "0"
+
+- name: Disable SWAP in fstab
+  when: swap_ret.stdout != "0"
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*\s*swap\s*.*)$'
+    replace: '#\1'
+
+- name: Set crictl.yaml
+  ansible.builtin.template:
+    src: crictl.j2
+    dest: /etc/crictl.yaml
+    owner: root
+    mode: u=rw,g=r,o=r
+
+
+- name: Load modules br_netfilter
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+    persistent: present
+
+- name: Load br_netfilter on load
+  ansible.builtin.copy:
+    src: modules-kubernetes.conf
+    dest: /etc/modules-load.d/modules-kubernetes.conf
+    owner: root
+    mode: u=rw,g=r,o=r
+
+- name: Set Sysctl
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value  }}"
+    state: present
+  with_items:
+    - name: net.ipv4.ip_forward
+      value: 1
+    - name: net.bridge.bridge-nf-call-iptables
+      value: 1
+    - name: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+    - name: net.ipv4.ip_nonlocal_bind # for HA
+      value: 1
+
+- name: Install packages
+  ansible.builtin.apt:
+    pkg:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
+      - bash-completion
+      - python3
+      - tar
+      - chrony
+      - vim
+      - jq
+      - git
+
+- name: Enable NTP server chrony
+  ansible.builtin.service:
+    name: chronyd
+    state: started
+
+
+
+- name: Install containerd
+  when: cri == "containerd"
+  ansible.builtin.include_tasks: containerd.yml
+
+
+- name: Install kubernetes
+  block:
+
+
+    - name: Add k8s apt-key
+      ansible.builtin.apt_key:
+       url: "https://{{ imageRepository }}/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
+       state: present
+       keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add k8s apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://{{ imageRepository }}/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Install k8s utils
+      ansible.builtin.apt:
+        pkg:
+          - kubectl
+          - kubelet
+          - kubeadm
+        state: present
+
+    - name: apt-mark-hold kubectl
+      ansible.builtin.dpkg_selections:
+        name: kubectl
+        selection: hold
+
+    - name: apt-mark-hold kubelet
+      ansible.builtin.dpkg_selections:
+        name: kubelet
+        selection: hold
+
+    - name: apt-mark-hold kubeadm
+      ansible.builtin.dpkg_selections:
+        name: kubeadm
+        selection: hold
+
+- name: Reboot machine
+  ansible.builtin.reboot:

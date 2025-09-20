@@ -1,0 +1,18 @@
+---
+
+- name: Generate join token
+  ansible.builtin.command: kubeadm token create
+  register: join_token
+
+- name: Get ca_cert_hash
+  ansible.builtin.shell: |
+    openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | \
+    openssl rsa -pubin -outform der 2>/dev/null | \
+    openssl dgst -sha256 -hex | sed 's/^.* //'
+  register: ca_cert_hash
+
+- name: Get join_path
+  ansible.builtin.shell: |
+    kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | cut -c9-
+  register: join_path
+

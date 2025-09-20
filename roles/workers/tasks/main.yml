@@ -1,0 +1,10 @@
+---
+
+- name: Create join link
+  ansible.builtin.include_tasks: prepare.yml
+  when: inventory_hostname == groups['k8s_masters'][0]
+  run_once: true
+
+- name: Join worker nodes
+  ansible.builtin.include_tasks: join.yml
+  when: inventory_hostname in groups['k8s_workers']
