@@ -30,3 +30,6 @@
 
   nodelocaldns_local_ip: 169.254.25.10
   nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.26.0"
+
+# helm
+helmVersion: v4.0.1
