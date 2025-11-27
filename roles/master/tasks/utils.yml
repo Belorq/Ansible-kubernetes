@@ -12,3 +12,45 @@
     dest: /root/.kube/config
     mode: '0700'
     remote_src: yes
+
+### kubectl autocomplete
+
+- name: Generate kubectl completion script
+    ansible.builtin.shell:
+      cmd: kubectl completion bash > ~/.kube/completion.bash.inc
+      creates: ~/.kube/completion.bash.inc
+
+- name: Ensure .bash_profile sources kubectl completion
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.bash_profile"
+        line: "source \"$HOME/.kube/completion.bash.inc\""
+        insertafter: EOF
+
+### helm
+
+- name: Install Helm
+  ansible.builtin.unarchive:
+    src: "https://get.helm.sh/helm-{{ helmVersion }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    extra_opts: "--strip-components=1"
+    owner: root
+    group: root
+    mode: 0755
+    remote_src: true
+    creates: /root/linux-amd64
+  creates: /usr/local/bin/helm
+
+### flux
+
+- name: Download FluxCD install script
+  become: true
+  ansible.builtin.get_url:
+    url: https://fluxcd.io/install.sh
+    dest: /tmp/flux_install.sh
+    mode: '0755'
+
+- name: Run FluxCD install script
+  become: true
+  ansible.builtin.shell: /tmp/flux_install.sh
+  args:
+    creates: /usr/local/bin/flux
