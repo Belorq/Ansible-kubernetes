@@ -16,15 +16,15 @@
 ### kubectl autocomplete
 
 - name: Generate kubectl completion script
-    ansible.builtin.shell:
-      cmd: kubectl completion bash > ~/.kube/completion.bash.inc
-      creates: ~/.kube/completion.bash.inc
+  ansible.builtin.shell:
+    cmd: kubectl completion bash > ~/.kube/completion.bash.inc
+    creates: ~/.kube/completion.bash.inc
 
 - name: Ensure .bash_profile sources kubectl completion
-      lineinfile:
-        path: "{{ ansible_env.HOME }}/.bash_profile"
-        line: "source \"$HOME/.kube/completion.bash.inc\""
-        insertafter: EOF
+  lineinfile:
+    path: "{{ ansible_env.HOME }}/.bash_profile"
+    line: "source \"$HOME/.kube/completion.bash.inc\""
+    insertafter: EOF
 
 ### helm
 
