@@ -34,9 +34,7 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub belor@192.168.122.153
 
 Добавим на всех хостах нашего пользователя в sudoers
 
-`ansible all -m ansible.builtin.lineinfile \
-  -a "path=/etc/sudoers line='belor ALL=(ALL) NOPASSWD:ALL' state=present validate='visudo -cf %s'" \
-  -b -K`
+`ansible all -m ansible.builtin.lineinfile -a "path=/etc/sudoers line='belor ALL=(ALL) NOPASSWD:ALL' state=present validate='visudo -cf %s'" -b -K`
 
   ## Установка
   ```bash
