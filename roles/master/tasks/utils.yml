@@ -25,6 +25,7 @@
     path: "{{ ansible_env.HOME }}/.bash_profile"
     line: "source \"$HOME/.kube/completion.bash.inc\""
     insertafter: EOF
+    create: yes
 
 ### helm
 
