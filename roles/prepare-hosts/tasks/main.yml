@@ -175,5 +175,5 @@
       args:
         executable: /bin/bash
 
-    - name: Reboot machine
-      ansible.builtin.reboot:
+- name: Reboot machine
+  ansible.builtin.reboot:
