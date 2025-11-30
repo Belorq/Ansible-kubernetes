@@ -2,6 +2,12 @@
 
 imageRepository: pkgs.k8s.io
 
+# For install without package manager
+
+cni_plugins_version: "v1.3.0"
+crictl_version: "v1.31.0"
+systemd_version: "v0.16.2"
+
 # Version
 
 kube_version: 1.33.4
@@ -32,4 +38,4 @@ nodelocaldns_local_ip: 169.254.25.10
 nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.26.0"
 
 # helm
-  helmVersion: v4.0.1
+helmVersion: v4.0.1
