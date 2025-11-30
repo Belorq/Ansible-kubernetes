@@ -81,41 +81,99 @@
 - name: Install kubernetes
   block:
 
+    #######################################################################
+    # (APT) — DISABLED, pkgs.k8s.io, CDN 403/timeout
+    #######################################################################
+    # - name: Add k8s apt-key
+    #   ansible.builtin.apt_key:
+    #     url: "https://{{ imageRepository }}/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
+    #     state: present
+    #     keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    #
+    # - name: Add k8s apt repository
+    #   ansible.builtin.apt_repository:
+    #     repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://{{ imageRepository }}/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
+    #     state: present
+    #     filename: kubernetes
+    #
+    # - name: Install k8s utils
+    #   ansible.builtin.apt:
+    #     pkg:
+    #       - kubectl
+    #       - kubelet
+    #       - kubeadm
+    #     state: present
+    #
+    # - name: apt-mark-hold kubectl
+    #   ansible.builtin.dpkg_selections:
+    #     name: kubectl
+    #     selection: hold
+    #
+    # - name: apt-mark-hold kubelet
+    #   ansible.builtin.dpkg_selections:
+    #     name: kubelet
+    #     selection: hold
+    #
+    # - name: apt-mark-hold kubeadm
+    #   ansible.builtin.dpkg_selections:
+    #     name: kubeadm
+    #     selection: hold
 
-    - name: Add k8s apt-key
-      ansible.builtin.apt_key:
-       url: "https://{{ imageRepository }}/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/Release.key"
-       state: present
-       keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
-    - name: Add k8s apt repository
-      ansible.builtin.apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://{{ imageRepository }}/core:/stable:/v{{ kube_version | regex_search('[0-9]+.[0-9]+') }}/deb/ /"
-        state: present
-        filename: kubernetes
+    #######################################################################
+    #                          BINARY INSTALL                             #
+    #######################################################################
 
-    - name: Install k8s utils
-      ansible.builtin.apt:
-        pkg:
-          - kubectl
-          - kubelet
-          - kubeadm
-        state: present
+    - name: Create CNI directory
+      ansible.builtin.file:
+        path: /opt/cni/bin
+        state: directory
+        mode: "0755"
 
-    - name: apt-mark-hold kubectl
-      ansible.builtin.dpkg_selections:
-        name: kubectl
-        selection: hold
+    - name: Install CNI plugins
+      ansible.builtin.unarchive:
+        src: "https://github.com/containernetworking/plugins/releases/download/{{ cni_plugins_version }}/cni-plugins-linux-amd64-{{ cni_plugins_version }}.tgz"
+        dest: /opt/cni/bin
+        remote_src: yes
 
-    - name: apt-mark-hold kubelet
-      ansible.builtin.dpkg_selections:
-        name: kubelet
-        selection: hold
+    - name: Ensure directory exists
+      ansible.builtin.file:
+        path: /usr/local/bin
+        state: directory
+        mode: "0755"
 
-    - name: apt-mark-hold kubeadm
-      ansible.builtin.dpkg_selections:
-        name: kubeadm
-        selection: hold
+    - name: Install crictl
+      ansible.builtin.unarchive:
+        src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
+        dest: /usr/local/bin
+        remote_src: yes
 
-- name: Reboot machine
-  ansible.builtin.reboot:
+    - name: Download kubeadm, kubectl, kubelet
+      ansible.builtin.get_url:
+        url: "https://dl.k8s.io/release/v{{ kube_version }}/bin/linux/amd64/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        mode: "0755"
+      loop:
+        - kubeadm
+        - kubelet
+        - kubectl
+
+    - name: Install kubelet.service
+      ansible.builtin.shell: |
+        curl -sSL https://raw.githubusercontent.com/kubernetes/release/{{ systemd_version }}/cmd/krel/templates/latest/kubelet/kubelet.service \
+        | sed "s:/usr/bin:/usr/local/bin:g" \
+        | tee /usr/lib/systemd/system/kubelet.service
+      args:
+        executable: /bin/bash
+
+    - name: Install 10-kubeadm.conf
+      ansible.builtin.shell: |
+        mkdir -p /usr/lib/systemd/system/kubelet.service.d
+        curl -sSL https://raw.githubusercontent.com/kubernetes/release/{{ systemd_version }}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf \
+        | sed "s:/usr/bin:/usr/local/bin:g" \
+        | tee /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+      args:
+        executable: /bin/bash
+
+    - name: Reboot machine
+      ansible.builtin.reboot:
