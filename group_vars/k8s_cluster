@@ -39,3 +39,10 @@ nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.26.0"
 
 # helm
 helmVersion: v4.0.1
+
+# SOPS
+sops_version: 3.11.0
+
+# age
+
+age_version: 1.2.1
