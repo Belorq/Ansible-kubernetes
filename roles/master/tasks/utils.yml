@@ -73,7 +73,7 @@
     owner: root
     group: root
     mode: 0755
-    remoute_src: true
+    remote_src: true
     creates: /usr/local/bin/age
   
   
