@@ -166,6 +166,13 @@
       args:
         executable: /bin/bash
 
+    - name: Enable kubelet
+      ansible.builtin.systemd:
+        name: kubelet
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
     - name: Install 10-kubeadm.conf
       ansible.builtin.shell: |
         mkdir -p /usr/lib/systemd/system/kubelet.service.d
