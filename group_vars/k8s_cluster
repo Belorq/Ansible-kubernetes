@@ -5,12 +5,12 @@ imageRepository: pkgs.k8s.io
 # For install without package manager
 
 cni_plugins_version: "v1.3.0"
-crictl_version: "v1.31.0"
-systemd_version: "v0.16.2"
+crictl_version: "v1.36.0"
+systemd_version: "v0.21.1"
 
 # Version
 
-kube_version: 1.33.4
+kube_version: 1.36.2
 kube_domain_name: cluster.local
 service_subnet: "10.233.0.0/18"
 pod_subnet: "10.233.64.0/18"
@@ -23,7 +23,7 @@ sandbox_image: "pkgs.k8s.io/pause:3.10"
 cni: calico
 
 # calico
-tigera_version: "v3.30.3"
+tigera_version: "v3.32.1"
 
 system_reserved: true
 system_memory_reserved: 512Mi
@@ -38,11 +38,11 @@ nodelocaldns_local_ip: 169.254.25.10
 nodelocaldns_image: "registry.k8s.io/dns/k8s-dns-node-cache:1.26.0"
 
 # helm
-helmVersion: v4.0.1
+helmVersion: v4.2.3
 
 # SOPS
-sops_version: 3.11.0
+sops_version: 3.13.2
 
 # age
 
-age_version: 1.2.1
+age_version: 1.3.1
