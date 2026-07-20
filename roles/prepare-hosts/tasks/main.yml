@@ -36,20 +36,17 @@
     owner: root
     mode: u=rw,g=r,o=r
 
-- name: Set Sysctl
-  ansible.posix.sysctl:
-    name: "{{ item.name }}"
-    value: "{{ item.value  }}"
-    state: present
-  with_items:
-    - name: net.ipv4.ip_forward
-      value: 1
-    - name: net.bridge.bridge-nf-call-iptables
-      value: 1
-    - name: net.bridge.bridge-nf-call-ip6tables
-      value: 1
-    - name: net.ipv4.ip_nonlocal_bind # for HA
-      value: 1
+- name: Install Kubernetes sysctl configuration
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubernetes.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      net.ipv4.ip_forward = 1
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_nonlocal_bind = 1
 
 - name: Install packages
   ansible.builtin.apt:
@@ -135,6 +132,10 @@
         src: "https://github.com/containernetworking/plugins/releases/download/{{ cni_plugins_version }}/cni-plugins-linux-amd64-{{ cni_plugins_version }}.tgz"
         dest: /opt/cni/bin
         remote_src: yes
+      register: cni_result
+      retries: 5
+      delay: 10
+      until: cni_result is succeeded
 
     - name: Ensure directory exists
       ansible.builtin.file:
@@ -147,24 +148,45 @@
         src: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
         dest: /usr/local/bin
         remote_src: yes
+      register: crictl_result
+      retries: 5
+      delay: 10
+      until: crictl_result is succeeded
+
 
     - name: Download kubeadm, kubectl, kubelet
       ansible.builtin.get_url:
         url: "https://dl.k8s.io/release/v{{ kube_version }}/bin/linux/amd64/{{ item }}"
         dest: "/usr/local/bin/{{ item }}"
         mode: "0755"
+        timeout: 60
+      register: download_k8s
+      retries: 5
+      delay: 10
+      until: download_k8s is succeeded
       loop:
         - kubeadm
         - kubelet
         - kubectl
 
-    - name: Install kubelet.service
-      ansible.builtin.shell: |
-        curl -sSL https://raw.githubusercontent.com/kubernetes/release/{{ systemd_version }}/cmd/krel/templates/latest/kubelet/kubelet.service \
-        | sed "s:/usr/bin:/usr/local/bin:g" \
-        | tee /usr/lib/systemd/system/kubelet.service
-      args:
-        executable: /bin/bash
+    - name: Download kubelet.service
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/kubernetes/release/{{ systemd_version }}/cmd/krel/templates/latest/kubelet/kubelet.service"
+        dest: /usr/lib/systemd/system/kubelet.service
+        owner: root
+        group: root
+        mode: "0644"
+        timeout: 60
+      register: download_kubelet_service
+      retries: 5
+      delay: 10
+      until: download_kubelet_service is succeeded
+
+    - name: Replace kubelet binary path
+      ansible.builtin.replace:
+        path: /usr/lib/systemd/system/kubelet.service
+        regexp: /usr/bin
+        replace: /usr/local/bin
 
     - name: Enable kubelet
       ansible.builtin.systemd:
@@ -173,14 +195,32 @@
         state: started
         daemon_reload: yes
 
-    - name: Install 10-kubeadm.conf
-      ansible.builtin.shell: |
-        mkdir -p /usr/lib/systemd/system/kubelet.service.d
-        curl -sSL https://raw.githubusercontent.com/kubernetes/release/{{ systemd_version }}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf \
-        | sed "s:/usr/bin:/usr/local/bin:g" \
-        | tee /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
-      args:
-        executable: /bin/bash
+    - name: Ensure kubelet drop-in directory exists
+      ansible.builtin.file:
+        path: /usr/lib/systemd/system/kubelet.service.d
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Download 10-kubeadm.conf
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/kubernetes/release/{{ systemd_version }}/cmd/krel/templates/latest/kubeadm/10-kubeadm.conf"
+        dest: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+        owner: root
+        group: root
+        mode: "0644"
+        timeout: 60
+      register: download_kubeadm_conf
+      retries: 5
+      delay: 10
+      until: download_kubeadm_conf is succeeded
+
+    - name: Replace kubelet binary path
+      ansible.builtin.replace:
+        path: /usr/lib/systemd/system/kubelet.service.d/10-kubeadm.conf
+        regexp: /usr/bin
+        replace: /usr/local/bin
 
 - name: Reboot machine
   ansible.builtin.reboot:
