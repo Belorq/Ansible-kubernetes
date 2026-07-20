@@ -1,6 +1,8 @@
 ---
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: InitConfiguration
+timeouts:
+  controlPlaneComponentHealthCheck: 5m0s
 bootstrapTokens:
 - groups:
   - system:bootstrappers:kubeadm:default-node-token
@@ -30,7 +32,6 @@ etcd:
     dataDir: /var/lib/etcd
 imageRepository: "registry.k8s.io"
 apiServer:
-  timeoutForControlPlane: 4m0s
   extraArgs:
   - name: authorization-mode
     value: Node,RBAC
