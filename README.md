@@ -1,8 +1,8 @@
 # Ansible-kubernetes
 
-**ОС:** Ubuntu 24.04.3 LTS
+**ОС:** [ Ubuntu 24.04.3 LTS, Ubuntu 26.04 LTS ]
 
-* Kubernetes v1.33.5
+* Kubernetes [ v1.33, 1.36 ]
 * calico
 * nodelocaldns
 * containerd
@@ -12,7 +12,7 @@
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip3 install ansible-core==2.19.2
+pip3 install ansible-core==2.21.2
 
 ansible-galaxy collection install community.general
 ansible-galaxy collection install ansible.posix
@@ -34,7 +34,9 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub belor@192.168.122.153
 
 Добавим на всех хостах нашего пользователя в sudoers
 
-`ansible all -m ansible.builtin.lineinfile -a "path=/etc/sudoers line='belor ALL=(ALL) NOPASSWD:ALL' state=present validate='visudo -cf %s'" -b -K`
+`ansible all \
+  -m shell \
+  -a "printf '%s\n' 'PASSWORD' | sudo -S sh -c \"echo 'belor ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && visudo -cf /etc/sudoers\""`
 
   ## Установка
   ```bash
