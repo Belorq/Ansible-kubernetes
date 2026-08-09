@@ -41,6 +41,11 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub belor@192.168.122.153
 ansible-playbook install-cluster.yml -b
 ```
 
+  ## Обновление
+  ```bash
+ansible-playbook upgrade.yml -b
+```
+
   ## Tree
   ```conf
 .

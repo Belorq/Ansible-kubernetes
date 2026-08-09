@@ -1,0 +1,8 @@
+---
+- name: Upgrade master node
+  when: inventory_hostname in groups['k8s_masters']
+  ansible.builtin.include_tasks: upgrade-master.yml
+
+- name: Upgrade worker nodes
+  when: inventory_hostname in groups['k8s_workers']
+  ansible.builtin.include_tasks: upgrade-workers.yml

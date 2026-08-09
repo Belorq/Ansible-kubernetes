@@ -1,0 +1,57 @@
+---
+- name: Check current version
+  ansible.builtin.shell:
+    cmd: "kubectl get nodes {{ ansible_facts['fqdn'] }} -o=jsonpath='{.status.nodeInfo.kubeletVersion}'"
+  register: version_current
+
+- name: Skip if the versions are the same
+  when: version_current.stdout is match(".*" + kube_version)
+  block:
+    - name: Versions are equal
+      ansible.builtin.debug:
+        msg: "Your current version {{ version_current.stdout }} are equal to kube_version {{ kube_version }}"
+
+    - name: Skip node
+      ansible.builtin.meta: end_host
+
+- name: Newer version download
+  ansible.builtin.get_url:
+    url: "https://dl.k8s.io/release/v{{ kube_version }}/bin/linux/amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    mode: "0755"
+    timeout: 60
+    force: true
+  register: update_components
+  retries: 5
+  delay: 10
+  until: update_components is succeeded
+  loop:
+    - kubeadm
+    - kubelet
+    - kubectl
+
+- name: Master node drain
+  ansible.builtin.shell:
+    cmd: "kubectl drain {{ ansible_facts['fqdn'] }} --ignore-daemonsets --delete-emptydir-data"
+
+- name: Upgrade master node
+  ansible.builtin.shell:
+    cmd: "kubeadm upgrade apply v{{ kube_version }} -y"
+
+- name: kubelet restart
+  ansible.builtin.systemd:
+    state: restarted
+    daemon_reload: true
+    name: kubelet
+
+- name: Waiting apiserver readyness
+  ansible.builtin.command: kubectl get nodes
+  register: apiserver_check
+  until: apiserver_check.rc == 0
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Uncordon master node
+  ansible.builtin.shell:
+    cmd: "kubectl uncordon {{ ansible_facts['fqdn'] }}"
